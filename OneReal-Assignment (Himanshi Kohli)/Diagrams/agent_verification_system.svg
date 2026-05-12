@@ -1,0 +1,156 @@
+<svg viewBox="0 0 980 780" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="diagTitle diagDesc">
+  <title id="diagTitle">Agent Verification System — block diagram</title>
+  <desc id="diagDesc">Five lanes: external sources, ingress and orchestration, worker pool with failure router, stores and human-ops layer side by side, and a Phase 2 AI augmentation lane.</desc>
+
+  <style>
+    .lane-label { font: 600 11px ui-sans-serif, system-ui, -apple-system, sans-serif; letter-spacing: 0.08em; fill: #6b7280; text-transform: uppercase; }
+    .lane-bg    { fill: #f5f5f4; stroke: #e5e7eb; stroke-width: 1; }
+    .box        { fill: #ffffff; stroke: #d4d4d8; stroke-width: 1.2; rx: 6; ry: 6; }
+    .title      { font: 600 12px ui-sans-serif, system-ui, -apple-system, sans-serif; fill: #18181b; }
+    .subtitle   { font: 400 10px ui-sans-serif, system-ui, -apple-system, sans-serif; fill: #6b7280; }
+    .conn       { stroke: #9ca3af; stroke-width: 1.4; fill: none; }
+    .junction   { fill: #9ca3af; }
+  </style>
+
+  <rect width="980" height="780" fill="#ffffff"/>
+
+  <!-- LANE 1: EXTERNAL -->
+  <rect class="lane-bg" x="20" y="20" width="940" height="80" rx="8"/>
+  <text class="lane-label" x="32" y="40">External Sources</text>
+
+  <rect class="box" x="60"  y="50" width="200" height="40"/>
+  <text class="title"    x="160" y="68" text-anchor="middle">CRM</text>
+  <text class="subtitle" x="160" y="82" text-anchor="middle">agent.activated webhook</text>
+
+  <rect class="box" x="390" y="50" width="200" height="40"/>
+  <text class="title"    x="490" y="68" text-anchor="middle">onereal.com Directory</text>
+  <text class="subtitle" x="490" y="82" text-anchor="middle">Cloudflare-fronted</text>
+
+  <rect class="box" x="720" y="50" width="200" height="40"/>
+  <text class="title"    x="820" y="68" text-anchor="middle">State DRE Sites (×50)</text>
+  <text class="subtitle" x="820" y="82" text-anchor="middle">CA, TX, FL, NY...</text>
+
+  <!-- LANE 2: INGRESS + ORCHESTRATION -->
+  <rect class="lane-bg" x="20" y="120" width="940" height="90" rx="8"/>
+  <text class="lane-label" x="32" y="140">Ingress &amp; Orchestration</text>
+
+  <rect class="box" x="60"  y="150" width="220" height="50"/>
+  <text class="title"    x="170" y="170" text-anchor="middle">n8n Webhook Receiver</text>
+  <text class="subtitle" x="170" y="186" text-anchor="middle">HMAC verify · Redis dedupe · 202</text>
+
+  <rect class="box" x="320" y="150" width="240" height="50"/>
+  <text class="title"    x="440" y="170" text-anchor="middle">n8n Orchestrator</text>
+  <text class="subtitle" x="440" y="186" text-anchor="middle">queue mode · BullMQ · K8s · HPA</text>
+
+  <rect class="box" x="640" y="150" width="280" height="50"/>
+  <text class="title"    x="780" y="170" text-anchor="middle">24h Cron Job</text>
+  <text class="subtitle" x="780" y="186" text-anchor="middle">website change detection · → Jira ticket</text>
+
+  <!-- LANE 3: WORKERS + FAILURE ROUTER -->
+  <rect class="lane-bg" x="20" y="230" width="940" height="200" rx="8"/>
+  <text class="lane-label" x="32" y="250">Worker Pool (Stateless and Playwright workers)</text>
+
+  <rect class="box" x="40"  y="262" width="210" height="48"/>
+  <text class="title"    x="145" y="282" text-anchor="middle">① API Extract</text>
+  <text class="subtitle" x="145" y="298" text-anchor="middle">CRM → name, license, exp</text>
+
+  <rect class="box" x="265" y="262" width="210" height="48"/>
+  <text class="title"    x="370" y="282" text-anchor="middle">② JoinReal Verify</text>
+  <text class="subtitle" x="370" y="298" text-anchor="middle">BrowserBase · search + state</text>
+
+  <rect class="box" x="490" y="262" width="210" height="48"/>
+  <text class="title"    x="595" y="282" text-anchor="middle">③ DRE Verify</text>
+  <text class="subtitle" x="595" y="298" text-anchor="middle">per-state adapter · scrape exp</text>
+
+  <rect class="box" x="715" y="262" width="210" height="48"/>
+  <text class="title"    x="820" y="282" text-anchor="middle">④ Cross-Validate</text>
+  <text class="subtitle" x="820" y="298" text-anchor="middle">CRM exp == DRE exp?</text>
+
+  <path class="conn" d="M 145 310 V 323"/>
+  <path class="conn" d="M 370 310 V 323"/>
+  <path class="conn" d="M 595 310 V 323"/>
+  <path class="conn" d="M 820 310 V 323"/>
+  <path class="conn" d="M 145 323 H 820"/>
+  <path class="conn" d="M 490 323 V 335"/>
+  <circle class="junction" cx="145" cy="323" r="2.5"/>
+  <circle class="junction" cx="370" cy="323" r="2.5"/>
+  <circle class="junction" cx="595" cy="323" r="2.5"/>
+  <circle class="junction" cx="820" cy="323" r="2.5"/>
+  <circle class="junction" cx="490" cy="323" r="2.5"/>
+
+  <rect class="box" x="370" y="335" width="240" height="44"/>
+  <text class="title"    x="490" y="354" text-anchor="middle">Failure Router</text>
+  <text class="subtitle" x="490" y="368" text-anchor="middle">classify · 5 buckets · route</text>
+
+  <rect class="box" x="60"  y="392" width="190" height="32"/>
+  <text class="title"    x="155" y="412" text-anchor="middle">Auto-Retry (1s/5s/30s)</text>
+
+  <rect class="box" x="290" y="392" width="220" height="32"/>
+  <text class="title"    x="400" y="412" text-anchor="middle">Jira Ticket (review queue)</text>
+
+  <rect class="box" x="555" y="392" width="180" height="32"/>
+  <text class="title"    x="645" y="412" text-anchor="middle">Dead-Letter Queue</text>
+
+  <rect class="box" x="775" y="392" width="160" height="32"/>
+  <text class="title"    x="855" y="412" text-anchor="middle">PagerDuty SEV</text>
+
+  <path class="conn" d="M 490 379 V 388 H 155 V 392"/>
+  <path class="conn" d="M 490 379 V 392"/>
+  <path class="conn" d="M 490 379 V 388 H 645 V 392"/>
+  <path class="conn" d="M 490 379 V 388 H 855 V 392"/>
+
+  <!-- LANE 4: STORES + HUMAN/OPS -->
+  <rect class="lane-bg" x="20"  y="450" width="380" height="240" rx="8"/>
+  <text class="lane-label" x="32" y="470">Stores</text>
+
+  <rect class="box" x="40"  y="482" width="340" height="44"/>
+  <text class="title"    x="210" y="502" text-anchor="middle">Postgres</text>
+  <text class="subtitle" x="210" y="516" text-anchor="middle">run state · selector_registry · audit_log (trigger)</text>
+
+  <rect class="box" x="40"  y="538" width="340" height="44"/>
+  <text class="title"    x="210" y="558" text-anchor="middle">Redis</text>
+  <text class="subtitle" x="210" y="572" text-anchor="middle">BullMQ queue · dedupe · locks</text>
+
+  <rect class="box" x="40"  y="594" width="340" height="44"/>
+  <text class="title"    x="210" y="614" text-anchor="middle">S3 (or MinIO)</text>
+  <text class="subtitle" x="210" y="628" text-anchor="middle">screenshots · DOM · HAR · 90-day TTL</text>
+
+  <rect class="lane-bg" x="420" y="450" width="540" height="240" rx="8"/>
+  <text class="lane-label" x="432" y="470">Human / Ops Layer</text>
+
+  <rect class="box" x="440" y="482" width="245" height="44"/>
+  <text class="title"    x="562" y="502" text-anchor="middle">Jira</text>
+  <text class="subtitle" x="562" y="516" text-anchor="middle">review queue · SLA · assignment · audit</text>
+
+  <rect class="box" x="700" y="482" width="245" height="44"/>
+  <text class="title"    x="822" y="502" text-anchor="middle">NocoDB</text>
+  <text class="subtitle" x="822" y="516" text-anchor="middle">all DB edits · Postgres RBAC · trigger-audited</text>
+
+  <rect class="box" x="440" y="538" width="245" height="44"/>
+  <text class="title"    x="562" y="558" text-anchor="middle">Slack #verify-ops</text>
+  <text class="subtitle" x="562" y="572" text-anchor="middle">awareness · digests · cron alerts</text>
+
+  <rect class="box" x="700" y="538" width="245" height="44"/>
+  <text class="title"    x="822" y="558" text-anchor="middle">PagerDuty</text>
+  <text class="subtitle" x="822" y="572" text-anchor="middle">SEV-1/2/3 escalation only</text>
+
+  <rect class="box" x="440" y="594" width="505" height="44"/>
+  <text class="title"    x="692" y="614" text-anchor="middle">Grafana / Prometheus</text>
+  <text class="subtitle" x="692" y="628" text-anchor="middle">metrics · SLO dashboards · queue depth</text>
+
+  <!-- LANE 5: PHASE 2 -->
+  <rect class="lane-bg" x="20" y="710" width="940" height="60" rx="8"/>
+  <text class="lane-label" x="32" y="730">Phase 2 — Deferred</text>
+
+  <rect class="box" x="60"  y="738" width="320" height="28"/>
+  <text class="title"    x="220" y="757" text-anchor="middle">AI Self-Heal (Stagehand / browser-use)</text>
+
+  <rect class="box" x="410" y="738" width="240" height="28"/>
+  <text class="title"    x="530" y="757" text-anchor="middle">Proposes diff → Jira</text>
+
+  <rect class="box" x="680" y="738" width="240" height="28"/>
+  <text class="title"    x="800" y="757" text-anchor="middle">Human approves → NocoDB applies</text>
+
+  <path class="conn" d="M 380 752 H 410"/>
+  <path class="conn" d="M 650 752 H 680"/>
+</svg>

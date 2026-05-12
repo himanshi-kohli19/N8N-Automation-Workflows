@@ -1,0 +1,208 @@
+<svg viewBox="0 0 1800 950" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="seqTitle seqDesc">
+  <title id="seqTitle">Agent Verification System — End-to-End Happy Path</title>
+  <desc id="seqDesc">Sequence diagram with 10 lifelines and 21 numbered messages, showing the flow from CRM event through workers to writeback.</desc>
+
+  <style>
+    .header-box   { fill: #f5f5f4; stroke: #d4d4d8; stroke-width: 1.2; rx: 6; ry: 6; }
+    .header-text  { font: 600 11px ui-sans-serif, system-ui, -apple-system, sans-serif; fill: #18181b; }
+    .lifeline     { stroke: #d4d4d8; stroke-width: 1.5; stroke-dasharray: 2 4; }
+    .msg          { stroke: #4b5563; stroke-width: 1.3; fill: none; }
+    .msg-return   { stroke: #4b5563; stroke-width: 1.1; fill: none; stroke-dasharray: 4 3; }
+    .step-num     { fill: #18181b; }
+    .step-num-txt { font: 700 9px ui-sans-serif, system-ui, -apple-system, sans-serif; fill: #ffffff; text-anchor: middle; dominant-baseline: central; }
+    .msg-label    { font: 500 10.5px ui-sans-serif, system-ui, -apple-system, sans-serif; fill: #18181b; text-anchor: middle; }
+    .label-bg     { fill: #ffffff; }
+  </style>
+
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#4b5563"/>
+    </marker>
+  </defs>
+
+  <rect width="1800" height="950" fill="#ffffff"/>
+
+  <!-- HEADERS -->
+  <rect class="header-box" x="10"   y="20" width="160" height="40"/>
+  <text class="header-text" x="90"   y="45" text-anchor="middle">CRM</text>
+  <rect class="header-box" x="190"  y="20" width="160" height="40"/>
+  <text class="header-text" x="270"  y="45" text-anchor="middle">n8n Webhook</text>
+  <rect class="header-box" x="370"  y="20" width="160" height="40"/>
+  <text class="header-text" x="450"  y="45" text-anchor="middle">Redis Queue</text>
+  <rect class="header-box" x="550"  y="20" width="160" height="40"/>
+  <text class="header-text" x="630"  y="45" text-anchor="middle">n8n Orchestrator</text>
+  <rect class="header-box" x="730"  y="20" width="160" height="40"/>
+  <text class="header-text" x="810"  y="45" text-anchor="middle">API Worker</text>
+  <rect class="header-box" x="910"  y="20" width="160" height="40"/>
+  <text class="header-text" x="990"  y="45" text-anchor="middle">JoinReal Worker</text>
+  <rect class="header-box" x="1090" y="20" width="160" height="40"/>
+  <text class="header-text" x="1170" y="45" text-anchor="middle">DRE Worker</text>
+  <rect class="header-box" x="1270" y="20" width="160" height="40"/>
+  <text class="header-text" x="1350" y="45" text-anchor="middle">Cross-Validate</text>
+  <rect class="header-box" x="1450" y="20" width="160" height="40"/>
+  <text class="header-text" x="1530" y="45" text-anchor="middle">Postgres</text>
+  <rect class="header-box" x="1630" y="20" width="160" height="40"/>
+  <text class="header-text" x="1710" y="45" text-anchor="middle">S3</text>
+
+  <!-- LIFELINES -->
+  <line class="lifeline" x1="90"   y1="60" x2="90"   y2="890"/>
+  <line class="lifeline" x1="270"  y1="60" x2="270"  y2="890"/>
+  <line class="lifeline" x1="450"  y1="60" x2="450"  y2="890"/>
+  <line class="lifeline" x1="630"  y1="60" x2="630"  y2="890"/>
+  <line class="lifeline" x1="810"  y1="60" x2="810"  y2="890"/>
+  <line class="lifeline" x1="990"  y1="60" x2="990"  y2="890"/>
+  <line class="lifeline" x1="1170" y1="60" x2="1170" y2="890"/>
+  <line class="lifeline" x1="1350" y1="60" x2="1350" y2="890"/>
+  <line class="lifeline" x1="1530" y1="60" x2="1530" y2="890"/>
+  <line class="lifeline" x1="1710" y1="60" x2="1710" y2="890"/>
+
+  <!-- MESSAGES -->
+
+  <rect class="label-bg" x="80" y="65" width="200" height="13"/>
+  <text class="msg-label" x="180" y="75">POST /agent-activated (HMAC signed)</text>
+  <line class="msg" x1="90" y1="85" x2="270" y2="85" marker-end="url(#arr)"/>
+  <circle class="step-num" cx="180" cy="85" r="9"/>
+  <text class="step-num-txt" x="180" y="85">1</text>
+
+  <rect class="label-bg" x="320" y="115" width="280" height="13"/>
+  <text class="msg-label" x="460" y="125">Verify HMAC, dedupe by event_id (Redis SET NX)</text>
+  <path class="msg" d="M 270 120 H 310 V 145 H 270" marker-end="url(#arr)"/>
+  <circle class="step-num" cx="310" cy="145" r="9"/>
+  <text class="step-num-txt" x="310" y="145">2</text>
+
+  <rect class="label-bg" x="290" y="170" width="170" height="13"/>
+  <text class="msg-label" x="375" y="180">enqueue verification_run</text>
+  <line class="msg" x1="270" y1="190" x2="450" y2="190" marker-end="url(#arr)"/>
+  <circle class="step-num" cx="375" cy="190" r="9"/>
+  <text class="step-num-txt" x="375" y="190">3</text>
+
+  <rect class="label-bg" x="125" y="210" width="100" height="13"/>
+  <text class="msg-label" x="180" y="220">202 Accepted</text>
+  <line class="msg-return" x1="270" y1="230" x2="90" y2="230" marker-end="url(#arr)"/>
+  <circle class="step-num" cx="180" cy="230" r="9"/>
+  <text class="step-num-txt" x="180" y="230">4</text>
+
+  <rect class="label-bg" x="495" y="250" width="100" height="13"/>
+  <text class="msg-label" x="540" y="260">dequeue</text>
+  <line class="msg" x1="450" y1="270" x2="630" y2="270" marker-end="url(#arr)"/>
+  <circle class="step-num" cx="540" cy="270" r="9"/>
+  <text class="step-num-txt" x="540" y="270">5</text>
+
+  <rect class="label-bg" x="900" y="290" width="280" height="13"/>
+  <text class="msg-label" x="1040" y="300">INSERT verification_run (state=pending)</text>
+  <line class="msg" x1="630" y1="310" x2="1530" y2="310" marker-end="url(#arr)"/>
+  <circle class="step-num" cx="1040" cy="310" r="9"/>
+  <text class="step-num-txt" x="1040" y="310">6</text>
+
+  <rect class="label-bg" x="660" y="330" width="125" height="13"/>
+  <text class="msg-label" x="720" y="340">extract(agent_id)</text>
+  <line class="msg" x1="630" y1="350" x2="810" y2="350" marker-end="url(#arr)"/>
+  <circle class="step-num" cx="720" cy="350" r="9"/>
+  <text class="step-num-txt" x="720" y="350">7</text>
+
+  <rect class="label-bg" x="370" y="370" width="160" height="13"/>
+  <text class="msg-label" x="450" y="380">GET /api/agents/{id}</text>
+  <line class="msg" x1="810" y1="390" x2="90" y2="390" marker-end="url(#arr)"/>
+  <circle class="step-num" cx="450" cy="390" r="9"/>
+  <text class="step-num-txt" x="450" y="390">8</text>
+
+  <rect class="label-bg" x="320" y="410" width="260" height="13"/>
+  <text class="msg-label" x="450" y="420">{name, state, license_no, expiration}</text>
+  <line class="msg-return" x1="90" y1="430" x2="810" y2="430" marker-end="url(#arr)"/>
+  <circle class="step-num" cx="450" cy="430" r="9"/>
+  <text class="step-num-txt" x="450" y="430">9</text>
+
+  <rect class="label-bg" x="1080" y="450" width="180" height="13"/>
+  <text class="msg-label" x="1170" y="460">UPDATE run.api_payload</text>
+  <line class="msg" x1="810" y1="470" x2="1530" y2="470" marker-end="url(#arr)"/>
+  <circle class="step-num" cx="1170" cy="470" r="9"/>
+  <text class="step-num-txt" x="1170" y="470">10</text>
+
+  <rect class="label-bg" x="745" y="490" width="160" height="13"/>
+  <text class="msg-label" x="810" y="500">verify_directory(agent)</text>
+  <line class="msg" x1="630" y1="510" x2="990" y2="510" marker-end="url(#arr)"/>
+  <circle class="step-num" cx="810" cy="510" r="9"/>
+  <text class="step-num-txt" x="810" y="510">11</text>
+
+  <rect class="label-bg" x="1035" y="535" width="280" height="13"/>
+  <text class="msg-label" x="1175" y="545">Open onereal.com, search by name, click profile</text>
+  <path class="msg" d="M 990 540 H 1030 V 565 H 990" marker-end="url(#arr)"/>
+  <circle class="step-num" cx="1030" cy="565" r="9"/>
+  <text class="step-num-txt" x="1030" y="565">12</text>
+
+  <rect class="label-bg" x="1235" y="585" width="225" height="13"/>
+  <text class="msg-label" x="1350" y="595">store screenshot + DOM snapshot</text>
+  <line class="msg" x1="990" y1="605" x2="1710" y2="605" marker-end="url(#arr)"/>
+  <circle class="step-num" cx="1350" cy="605" r="9"/>
+  <text class="step-num-txt" x="1350" y="605">13</text>
+
+  <rect class="label-bg" x="700" y="625" width="220" height="13"/>
+  <text class="msg-label" x="810" y="635">{found:true, listed_state:"CA"}</text>
+  <line class="msg-return" x1="990" y1="645" x2="630" y2="645" marker-end="url(#arr)"/>
+  <circle class="step-num" cx="810" cy="645" r="9"/>
+  <text class="step-num-txt" x="810" y="645">14</text>
+
+  <rect class="label-bg" x="780" y="665" width="240" height="13"/>
+  <text class="msg-label" x="900" y="675">verify_license(license_no, state="CA")</text>
+  <line class="msg" x1="630" y1="685" x2="1170" y2="685" marker-end="url(#arr)"/>
+  <circle class="step-num" cx="900" cy="685" r="9"/>
+  <text class="step-num-txt" x="900" y="685">15</text>
+
+  <rect class="label-bg" x="1215" y="705" width="370" height="13"/>
+  <text class="msg-label" x="1400" y="715">Open dre.ca.gov, search license, click listing, scrape expiration</text>
+  <path class="msg" d="M 1170 710 H 1210 V 735 H 1170" marker-end="url(#arr)"/>
+  <circle class="step-num" cx="1210" cy="735" r="9"/>
+  <text class="step-num-txt" x="1210" y="735">16</text>
+
+  <rect class="label-bg" x="1325" y="755" width="225" height="13"/>
+  <text class="msg-label" x="1440" y="765">store screenshot + DOM snapshot</text>
+  <line class="msg" x1="1170" y1="775" x2="1710" y2="775" marker-end="url(#arr)"/>
+  <circle class="step-num" cx="1440" cy="775" r="9"/>
+  <text class="step-num-txt" x="1440" y="775">17</text>
+
+  <rect class="label-bg" x="810" y="795" width="190" height="13"/>
+  <text class="msg-label" x="900" y="805">{expiration:"2027-08-14"}</text>
+  <line class="msg-return" x1="1170" y1="815" x2="630" y2="815" marker-end="url(#arr)"/>
+  <circle class="step-num" cx="900" cy="815" r="9"/>
+  <text class="step-num-txt" x="900" y="815">18</text>
+
+  <rect class="label-bg" x="800" y="835" width="380" height="13"/>
+  <text class="msg-label" x="990" y="845">cross_validate(crm_exp, dre_exp, joinreal_state, agent.state)</text>
+  <line class="msg" x1="630" y1="855" x2="1350" y2="855" marker-end="url(#arr)"/>
+  <circle class="step-num" cx="990" cy="855" r="9"/>
+  <text class="step-num-txt" x="990" y="855">19</text>
+
+  <rect class="label-bg" x="1340" y="867" width="220" height="13"/>
+  <text class="msg-label" x="1450" y="877">UPDATE run (state=verified)</text>
+  <line class="msg" x1="1350" y1="882" x2="1530" y2="882" marker-end="url(#arr)"/>
+  <circle class="step-num" cx="1450" cy="882" r="9"/>
+  <text class="step-num-txt" x="1450" y="882">20</text>
+
+  <rect class="label-bg" x="540" y="867" width="370" height="13"/>
+  <text class="msg-label" x="720" y="877">PATCH /api/agents/{id} (verified=true)</text>
+  <line class="msg" x1="1350" y1="900" x2="90" y2="900" marker-end="url(#arr)"/>
+  <circle class="step-num" cx="720" cy="900" r="9"/>
+  <text class="step-num-txt" x="720" y="900">21</text>
+
+  <!-- FOOTERS -->
+  <rect class="header-box" x="10"   y="910" width="160" height="36"/>
+  <text class="header-text" x="90"   y="933" text-anchor="middle">CRM</text>
+  <rect class="header-box" x="190"  y="910" width="160" height="36"/>
+  <text class="header-text" x="270"  y="933" text-anchor="middle">n8n Webhook</text>
+  <rect class="header-box" x="370"  y="910" width="160" height="36"/>
+  <text class="header-text" x="450"  y="933" text-anchor="middle">Redis Queue</text>
+  <rect class="header-box" x="550"  y="910" width="160" height="36"/>
+  <text class="header-text" x="630"  y="933" text-anchor="middle">n8n Orchestrator</text>
+  <rect class="header-box" x="730"  y="910" width="160" height="36"/>
+  <text class="header-text" x="810"  y="933" text-anchor="middle">API Worker</text>
+  <rect class="header-box" x="910"  y="910" width="160" height="36"/>
+  <text class="header-text" x="990"  y="933" text-anchor="middle">JoinReal Worker</text>
+  <rect class="header-box" x="1090" y="910" width="160" height="36"/>
+  <text class="header-text" x="1170" y="933" text-anchor="middle">DRE Worker</text>
+  <rect class="header-box" x="1270" y="910" width="160" height="36"/>
+  <text class="header-text" x="1350" y="933" text-anchor="middle">Cross-Validate</text>
+  <rect class="header-box" x="1450" y="910" width="160" height="36"/>
+  <text class="header-text" x="1530" y="933" text-anchor="middle">Postgres</text>
+  <rect class="header-box" x="1630" y="910" width="160" height="36"/>
+  <text class="header-text" x="1710" y="933" text-anchor="middle">S3</text>
+</svg>

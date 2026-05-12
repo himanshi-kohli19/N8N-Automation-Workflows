@@ -1,0 +1,1446 @@
+{
+  "name": "Agent Verification System — Complete Workflow (Himanshi)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agent-activated",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "30ce98a4-1902-48b0-ba00-af5fa3e3c84a",
+      "name": "CRM Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -2496,
+        480
+      ],
+      "webhookId": "74b14603-a49a-4190-8c37-a3511060616c"
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst secret = $env.CRM_HMAC_SECRET;\nconst body = JSON.stringify($json.body);\nconst signature = $json.headers['x-crm-signature'];\nconst expected = crypto.createHmac('sha256', secret).update(body).digest('hex');\nif (signature !== expected) {\n  throw new Error('Invalid HMAC signature');\n}\nreturn [{ json: { ...$json.body, _verified: true } }];"
+      },
+      "id": "f56e3d1e-435b-47b4-88e3-33022f5c37b2",
+      "name": "Verify HMAC",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2288,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "event:{{$json.event_id}}",
+        "value": "received",
+        "keyType": "string",
+        "expire": true,
+        "ttl": 86400
+      },
+      "id": "6f88ab0f-7483-4ceb-b2b1-e9961098c682",
+      "name": "Dedupe (Redis SET NX)",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -2096,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "1",
+              "leftValue": "={{$node['Dedupe (Redis SET NX)'].json.value}}",
+              "rightValue": "OK",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2d1b8356-1c8d-4784-a66f-f4376c677615",
+      "name": "New Event?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1888,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"accepted\",\"run_id\":\"{{$json.event_id}}\"}",
+        "options": {}
+      },
+      "id": "9c6afe74-66be-4530-9b3f-82416fdec29f",
+      "name": "Respond 202 Accepted",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -1696,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"duplicate\",\"event_id\":\"{{$json.event_id}}\"}",
+        "options": {}
+      },
+      "id": "cd0b61f3-8711-4d5f-ae69-9116368bf94f",
+      "name": "Respond 202 Duplicate",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -1696,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO verification_run (agent_id, crm_event_id, state, started_at) VALUES ($1, $2, 'pending', now()) ON CONFLICT (agent_id, crm_event_id) DO NOTHING RETURNING id;",
+        "options": {
+          "queryReplacement": "={{$json.agent_id}}, {{$json.event_id}}"
+        }
+      },
+      "id": "cb59062e-dce5-49d5-a9a9-61c63137c993",
+      "name": "Insert verification_run",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        -1488,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://crm.real.com/api/agents/{{$json.agent_id}}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "4950c91e-7422-466e-ac12-6f3ec3bf9316",
+      "name": "API Extract: GET Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -1296,
+        400
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE verification_run SET api_payload = $1::jsonb, state = 'extracted' WHERE id = $2;",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify($json) }}, {{$node['Insert verification_run'].json.id}}"
+        }
+      },
+      "id": "80c4739a-72a5-4516-9ac2-8ca91a590d66",
+      "name": "Update api_payload",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        -1088,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://playwright-worker.cluster.local/joinreal/verify",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "agent_name",
+              "value": "={{$json.name}}"
+            },
+            {
+              "name": "expected_state",
+              "value": "={{$json.state}}"
+            },
+            {
+              "name": "run_id",
+              "value": "={{$node['Insert verification_run'].json.id}}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "cb5a8087-b622-4551-9675-ecd6bbd14669",
+      "name": "JoinReal Verify Worker",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -896,
+        384
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "real-verification-artifacts",
+        "fileName": "=screenshots/{{$node['Insert verification_run'].json.id}}/joinreal.png",
+        "binaryPropertyName": "screenshot",
+        "additionalFields": {
+          "acl": "private",
+          "storageClass": "standard"
+        }
+      },
+      "id": "51671cb8-4951-4045-b314-137347177ad2",
+      "name": "Store JR Artifacts to S3",
+      "type": "n8n-nodes-base.awsS3",
+      "typeVersion": 2,
+      "position": [
+        -688,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE verification_run SET joinreal_result = $1::jsonb, state = 'directory_verified' WHERE id = $2;",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify($node['JoinReal Verify Worker'].json) }}, {{$node['Insert verification_run'].json.id}}"
+        }
+      },
+      "id": "5d16976d-088b-4d21-86e4-06f922ccf237",
+      "name": "Update joinreal_result",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        -496,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://playwright-worker.cluster.local/dre/{{$node['API Extract: GET Agent'].json.state.toLowerCase()}}/verify",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "license_no",
+              "value": "={{$node['API Extract: GET Agent'].json.license_no}}"
+            },
+            {
+              "name": "run_id",
+              "value": "={{$node['Insert verification_run'].json.id}}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "e6d186b2-84bf-40b5-b70a-d04b16c38427",
+      "name": "DRE Verify Worker",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -304,
+        368
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "real-verification-artifacts",
+        "fileName": "=screenshots/{{$node['Insert verification_run'].json.id}}/dre.png",
+        "binaryPropertyName": "screenshot",
+        "additionalFields": {
+          "acl": "private",
+          "storageClass": "standard"
+        }
+      },
+      "id": "8e287475-66c8-49d4-9545-221b71801250",
+      "name": "Store DRE Artifacts to S3",
+      "type": "n8n-nodes-base.awsS3",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE verification_run SET dre_result = $1::jsonb, state = 'dre_verified' WHERE id = $2;",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify($node['DRE Verify Worker'].json) }}, {{$node['Insert verification_run'].json.id}}"
+        }
+      },
+      "id": "50fc354b-19a2-4aab-be8f-8406424d10a5",
+      "name": "Update dre_result",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        112,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "exp_match",
+              "leftValue": "={{$node['API Extract: GET Agent'].json.expiration}}",
+              "rightValue": "={{$node['DRE Verify Worker'].json.expiration}}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "state_match",
+              "leftValue": "={{$node['API Extract: GET Agent'].json.state}}",
+              "rightValue": "={{$node['JoinReal Verify Worker'].json.listed_state}}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "52d4621b-2850-4668-bfd2-eed582128ccb",
+      "name": "Cross-Validate (CRM exp == DRE exp?)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        320,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE verification_run SET state = 'verified', verified_at = now(), result_json = $1::jsonb WHERE id = $2;",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify({match: true}) }}, {{$node['Insert verification_run'].json.id}}"
+        }
+      },
+      "id": "deeff186-bf8f-4125-8c90-991d9809b5dd",
+      "name": "Mark verified",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        512,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://crm.real.com/api/agents/{{$node['API Extract: GET Agent'].json.agent_id}}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "verified",
+              "value": "true"
+            },
+            {
+              "name": "verified_at",
+              "value": "={{$now.toISO()}}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "fc0edbec-8f6c-4039-b180-5b5dabaf4fb1",
+      "name": "Writeback to CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        704,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "throw new Error(JSON.stringify({\n  failure_class: 'data_mismatch',\n  run_id: $node['Insert verification_run'].json.id,\n  agent_id: $node['API Extract: GET Agent'].json.agent_id,\n  crm_expiration: $node['API Extract: GET Agent'].json.expiration,\n  dre_expiration: $node['DRE Verify Worker'].json.expiration,\n  joinreal_state: $node['JoinReal Verify Worker'].json.listed_state,\n  expected_state: $node['API Extract: GET Agent'].json.state,\n}));"
+      },
+      "id": "dae50927-0912-42fa-a156-dcea3a88f927",
+      "name": "Throw Data Mismatch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        512,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 4 * * *"
+            }
+          ]
+        }
+      },
+      "id": "82a1ff36-b47f-4e6d-b47e-2b50e4ac0edc",
+      "name": "Canary · Daily 04:00 UTC",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -2496,
+        1088
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT agent_id, name, state, license_no, expected_expiration FROM canary_fixtures WHERE active = TRUE;",
+        "options": {}
+      },
+      "id": "53b0539f-76d5-4dc7-b323-4ebd88baa69f",
+      "name": "Canary · Load Test Fixtures",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        -2288,
+        1088
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "4d137f4f-91e0-4695-999b-4417a1c27e0c",
+      "name": "Canary · For Each Fixture",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -2096,
+        1088
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "event_id",
+              "value": "=canary-{{$now.toMillis()}}-{{$json.agent_id}}",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "agent_id",
+              "value": "={{$json.agent_id}}",
+              "type": "string"
+            },
+            {
+              "id": "3",
+              "name": "is_canary",
+              "value": "true",
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ec746728-a9c2-4c80-acb7-5ed3ce61edab",
+      "name": "Canary · Build Test Event",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1888,
+        1072
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://n8n.cluster.local/webhook/agent-activated",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-CRM-Signature",
+              "value": "={{ $env.CRM_HMAC_SIGNATURE }}"
+            },
+            {
+              "name": "X-Canary",
+              "value": "true"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "32f9fa8e-75f7-4f76-b02e-d5ed9517038f",
+      "name": "Canary · POST to Verification Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -1696,
+        1072
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 90
+      },
+      "id": "2b74bec5-5784-4d57-a383-d0c0fbac0089",
+      "name": "Canary · Wait 90s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -1488,
+        1072
+      ],
+      "webhookId": "fc1d607d-5ee1-434e-ad9b-04cb93fbd0d9"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT vr.state, vr.api_payload, vr.joinreal_result, vr.dre_result,        cf.expected_expiration FROM verification_run vr JOIN canary_fixtures cf ON cf.agent_id = vr.agent_id WHERE vr.crm_event_id = $1;",
+        "options": {
+          "queryReplacement": "={{$node['Build Test Event'].json.event_id}}"
+        }
+      },
+      "id": "edef6bea-b589-49a4-829f-1318e4338b19",
+      "name": "Canary · Read Verification Result",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        -1296,
+        1072
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "1",
+              "leftValue": "={{$json.state}}",
+              "rightValue": "verified",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "8c2a7bf0-f8b2-4261-9073-2669a9799387",
+      "name": "Canary · Drift Detected?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1088,
+        1072
+      ]
+    },
+    {
+      "parameters": {
+        "project": "REAL",
+        "issueType": "Task",
+        "summary": "=[Canary] Drift detected — {{$node['Build Test Event'].json.agent_id}}",
+        "additionalFields": {
+          "description": "=Canary run failed for fixture {{$node['Build Test Event'].json.agent_id}}.\n\nRun state: {{$json.state}}\nExpected expiration: {{$json.expected_expiration}}\nDRE result: {{ JSON.stringify($json.dre_result) }}\nJoinReal result: {{ JSON.stringify($json.joinreal_result) }}\n\nTriage in NocoDB → selector_registry.",
+          "labels": [
+            "drift-detection",
+            "canary"
+          ],
+          "priority": {
+            "id": "2"
+          }
+        }
+      },
+      "id": "3a35abe8-1dfe-474d-923e-a6293ec432e3",
+      "name": "Canary · Create Drift Ticket (Jira)",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        -896,
+        960
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO canary_run (fixture_agent_id, run_at, status) VALUES ($1, now(), 'green');",
+        "options": {
+          "queryReplacement": "={{$node['Build Test Event'].json.agent_id}}"
+        }
+      },
+      "id": "4d10586b-77f3-491a-8f1d-45a6f677e9d0",
+      "name": "Canary · Record Canary Success",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        -896,
+        1152
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "verify-ops",
+          "mode": "name"
+        },
+        "text": "=:warning: Canary drift for *{{$node['Build Test Event'].json.agent_id}}* — Jira: REAL-{{$node['Create Drift Ticket (Jira)'].json.id}}",
+        "otherOptions": {}
+      },
+      "id": "f4e86979-fb4f-438c-b7b5-0a84abb2065d",
+      "name": "Canary · Slack: Canary Failed",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        -688,
+        960
+      ],
+      "webhookId": "2bc1a7c1-ab49-4d9d-827a-5b37bf28ce7b"
+    },
+    {
+      "parameters": {},
+      "id": "8a8e904a-0798-430f-89d4-d783978655e1",
+      "name": "Canary · Next Fixture",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -416,
+        1072
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "910c6b5d-de46-4cea-8691-bfca56d2809b",
+      "name": "Failure Router · Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2512,
+        1920
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const err = $json.execution.error || {};\nconst msg = (err.message || '').toLowerCase();\nconst stepName = err.node && err.node.name ? err.node.name : '';\nlet cls = 'poison';\nif (msg.includes('timeout') || msg.includes('econnreset') || msg.includes('5xx')) cls = 'transient';\nelse if (msg.includes('selector') || msg.includes('locator')) cls = 'selector';\nelse if (msg.includes('data_mismatch') || msg.includes('mismatch')) cls = 'data_mismatch';\nelse if (msg.includes('not_found') || msg.includes('zero results')) cls = 'not_found';\n// Unwrap structured error payload if present\nlet payload = {};\ntry { payload = JSON.parse(err.message); cls = payload.failure_class || cls; } catch (e) {}\nreturn [{ json: { failure_class: cls, step: stepName, raw: err.message, payload, run_id: payload.run_id } }];"
+      },
+      "id": "5c3b1ef1-c3b9-4081-8845-3235ef256f08",
+      "name": "Failure Router · Classify Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2304,
+        1920
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.failure_class}}",
+                    "rightValue": "transient",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.failure_class}}",
+                    "rightValue": "selector",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.failure_class}}",
+                    "rightValue": "data_mismatch",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.failure_class}}",
+                    "rightValue": "not_found",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.failure_class}}",
+                    "rightValue": "poison",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "60ee8020-47af-49ba-85d6-31f4f34978bf",
+      "name": "Failure Router · Switch by Class",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -2112,
+        1856
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "c0bfc35f-2bb7-475a-a502-b90eab9886b1",
+      "name": "Failure Router · Wait Backoff",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -1904,
+        1616
+      ],
+      "webhookId": "a304e4bb-8e12-410f-b785-4ddd5d465d15"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://n8n.cluster.local/webhook/agent-activated",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "66edf9c4-068d-4dea-9098-d0f3cea6e929",
+      "name": "Failure Router · Retry: Re-Enqueue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -1712,
+        1616
+      ]
+    },
+    {
+      "parameters": {
+        "project": "REAL",
+        "issueType": "Bug",
+        "summary": "=[Selector] {{$json.step}} — run {{$json.run_id}}",
+        "additionalFields": {
+          "description": "=Selector ladder exhausted.\n\nStep: {{$json.step}}\nError: {{$json.raw}}\n\nReview screenshot in the verification_run row, then update selector_registry in NocoDB.",
+          "labels": [
+            "production-failure",
+            "selector"
+          ],
+          "priority": {
+            "id": "3"
+          }
+        }
+      },
+      "id": "3100fef6-b3c3-497d-a567-aa7ec6228ff2",
+      "name": "Failure Router · Create Jira: Selector",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        -1904,
+        1776
+      ]
+    },
+    {
+      "parameters": {
+        "project": "REAL",
+        "issueType": "Task",
+        "summary": "=[Data Mismatch] CRM ≠ DRE — run {{$json.run_id}}",
+        "additionalFields": {
+          "description": "=Cross-validation failed. {{ JSON.stringify($json.payload) }}",
+          "labels": [
+            "production-failure",
+            "data-mismatch"
+          ],
+          "priority": {
+            "id": "2"
+          }
+        }
+      },
+      "id": "0fd5f98a-4df7-4fe5-bf79-72f355539755",
+      "name": "Failure Router · Create Jira: Data Mismatch",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        -1904,
+        1920
+      ]
+    },
+    {
+      "parameters": {
+        "project": "REAL",
+        "issueType": "Task",
+        "summary": "=[Not Found] {{$json.step}} — run {{$json.run_id}}",
+        "additionalFields": {
+          "description": "=Search returned 0 results.\n\n{{$json.raw}}",
+          "labels": [
+            "production-failure",
+            "not-found"
+          ],
+          "priority": {
+            "id": "4"
+          }
+        }
+      },
+      "id": "69b2cb1c-811c-4e6c-b8f5-e3b6ef8db8e7",
+      "name": "Failure Router · Create Jira: Not Found",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        -1904,
+        2096
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO dead_letter_queue (run_id, payload, error, occurred_at) VALUES ($1, $2::jsonb, $3, now());",
+        "options": {
+          "queryReplacement": "={{$json.run_id}}, {{ JSON.stringify($json.payload) }}, {{$json.raw}}"
+        }
+      },
+      "id": "35ff8b43-3473-4c54-9a24-ae2993a7864b",
+      "name": "Failure Router · Dead-Letter (Postgres)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        -1904,
+        2256
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "apiToken",
+        "resource": "incident",
+        "operation": "create",
+        "title": "=Verification poison message — run {{$json.run_id}}",
+        "serviceId": "",
+        "email": "",
+        "additionalFields": {
+          "details": "={{$json.raw}}",
+          "urgency": "high"
+        },
+        "conferenceBridgeUi": {}
+      },
+      "id": "a84a310a-c655-47aa-8154-027adfdd6f9b",
+      "name": "Failure Router · PagerDuty: SEV-2",
+      "type": "n8n-nodes-base.pagerDuty",
+      "typeVersion": 1,
+      "position": [
+        -1712,
+        2256
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "verify-ops",
+          "mode": "name"
+        },
+        "text": "=:rotating_light: New ticket: {{$json.failure_class}} — see Jira",
+        "otherOptions": {}
+      },
+      "id": "c34b1992-3ac9-4d8f-84f9-f3093529a867",
+      "name": "Failure Router · Slack: #verify-ops",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        -1712,
+        1856
+      ],
+      "webhookId": "aa8367bb-972f-4d5b-a634-28613db6418a"
+    },
+    {
+      "parameters": {
+        "content": "## Agent Verification Orchestrator",
+        "height": 576,
+        "width": 3600,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -2576,
+        208
+      ],
+      "typeVersion": 1,
+      "id": "c2095033-45dd-474f-9b21-e6c3eea63cfb",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Canary: 24 Hour Cron Job - Workflow (UI Resilience)",
+        "height": 512,
+        "width": 2336,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -2560,
+        880
+      ],
+      "typeVersion": 1,
+      "id": "50b51448-ad05-4cfd-a3b6-79e49b803694",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Failure Router - Workflow",
+        "height": 976,
+        "width": 1126
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -2576,
+        1488
+      ],
+      "typeVersion": 1,
+      "id": "70a2cad2-427e-40cf-8a81-f4d710d16762",
+      "name": "Sticky Note2"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "CRM Webhook": {
+      "main": [
+        [
+          {
+            "node": "Verify HMAC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify HMAC": {
+      "main": [
+        [
+          {
+            "node": "Dedupe (Redis SET NX)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dedupe (Redis SET NX)": {
+      "main": [
+        [
+          {
+            "node": "New Event?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New Event?": {
+      "main": [
+        [
+          {
+            "node": "Respond 202 Accepted",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 202 Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond 202 Accepted": {
+      "main": [
+        [
+          {
+            "node": "Insert verification_run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert verification_run": {
+      "main": [
+        [
+          {
+            "node": "API Extract: GET Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API Extract: GET Agent": {
+      "main": [
+        [
+          {
+            "node": "Update api_payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update api_payload": {
+      "main": [
+        [
+          {
+            "node": "JoinReal Verify Worker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JoinReal Verify Worker": {
+      "main": [
+        [
+          {
+            "node": "Store JR Artifacts to S3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store JR Artifacts to S3": {
+      "main": [
+        [
+          {
+            "node": "Update joinreal_result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update joinreal_result": {
+      "main": [
+        [
+          {
+            "node": "DRE Verify Worker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DRE Verify Worker": {
+      "main": [
+        [
+          {
+            "node": "Store DRE Artifacts to S3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store DRE Artifacts to S3": {
+      "main": [
+        [
+          {
+            "node": "Update dre_result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update dre_result": {
+      "main": [
+        [
+          {
+            "node": "Cross-Validate (CRM exp == DRE exp?)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cross-Validate (CRM exp == DRE exp?)": {
+      "main": [
+        [
+          {
+            "node": "Mark verified",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Throw Data Mismatch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark verified": {
+      "main": [
+        [
+          {
+            "node": "Writeback to CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Canary · Daily 04:00 UTC": {
+      "main": [
+        [
+          {
+            "node": "Canary · Load Test Fixtures",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Canary · Load Test Fixtures": {
+      "main": [
+        [
+          {
+            "node": "Canary · For Each Fixture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Canary · For Each Fixture": {
+      "main": [
+        [
+          {
+            "node": "Canary · Build Test Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Canary · Build Test Event": {
+      "main": [
+        [
+          {
+            "node": "Canary · POST to Verification Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Canary · POST to Verification Webhook": {
+      "main": [
+        [
+          {
+            "node": "Canary · Wait 90s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Canary · Wait 90s": {
+      "main": [
+        [
+          {
+            "node": "Canary · Read Verification Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Canary · Read Verification Result": {
+      "main": [
+        [
+          {
+            "node": "Canary · Drift Detected?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Canary · Drift Detected?": {
+      "main": [
+        [
+          {
+            "node": "Canary · Create Drift Ticket (Jira)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Canary · Record Canary Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Canary · Create Drift Ticket (Jira)": {
+      "main": [
+        [
+          {
+            "node": "Canary · Slack: Canary Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Canary · Slack: Canary Failed": {
+      "main": [
+        [
+          {
+            "node": "Canary · Next Fixture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Canary · Record Canary Success": {
+      "main": [
+        [
+          {
+            "node": "Canary · Next Fixture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Canary · Next Fixture": {
+      "main": [
+        [
+          {
+            "node": "Canary · For Each Fixture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Failure Router · Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Failure Router · Classify Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Failure Router · Classify Error": {
+      "main": [
+        [
+          {
+            "node": "Failure Router · Switch by Class",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Failure Router · Switch by Class": {
+      "main": [
+        [
+          {
+            "node": "Failure Router · Wait Backoff",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Failure Router · Create Jira: Selector",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Failure Router · Create Jira: Data Mismatch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Failure Router · Create Jira: Not Found",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Failure Router · Dead-Letter (Postgres)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Failure Router · Wait Backoff": {
+      "main": [
+        [
+          {
+            "node": "Failure Router · Retry: Re-Enqueue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Failure Router · Create Jira: Selector": {
+      "main": [
+        [
+          {
+            "node": "Failure Router · Slack: #verify-ops",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Failure Router · Create Jira: Data Mismatch": {
+      "main": [
+        [
+          {
+            "node": "Failure Router · Slack: #verify-ops",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Failure Router · Dead-Letter (Postgres)": {
+      "main": [
+        [
+          {
+            "node": "Failure Router · PagerDuty: SEV-2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "41896557-38b1-4c9f-980a-7ff7ed835f0e",
+  "meta": {
+    "instanceId": "f0de39e7be7441032ef7d51b99eb7950c623540a4dfee870924e8ae970838d36"
+  },
+  "id": "DuYouL2KwwoFfypn",
+  "tags": []
+}
