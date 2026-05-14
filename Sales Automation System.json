@@ -1,0 +1,1104 @@
+{
+  "name": "Sales Automation System",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Lyzr Automation Solutions for Businesses",
+        "formDescription": "Please complete the form below and our team will get in touch with you shortly.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Name",
+              "placeholder": "John Doe"
+            },
+            {
+              "fieldLabel": "Email",
+              "fieldType": "email",
+              "placeholder": "john.doe@business.com"
+            },
+            {
+              "fieldLabel": "Business Use Case",
+              "placeholder": "Describe your business, your products or services, and the type of customers you want to reach."
+            },
+            {
+              "fieldLabel": "Country",
+              "placeholder": "Your Country Name"
+            },
+            {
+              "fieldLabel": "Company Size (Number of Employees)",
+              "fieldType": "number",
+              "placeholder": "10, 50, 100, 1000 employees"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.5,
+      "position": [
+        -816,
+        0
+      ],
+      "id": "44bd6dca-f4a1-4eb2-b23d-e1bc13cc296c",
+      "name": "On form submission",
+      "webhookId": "9df8136e-1baa-4617-860d-5a7421514385"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-20b:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        32,
+        208
+      ],
+      "id": "1f71202a-8ed2-4510-943b-521394401c7d",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "HwubC9p31HUo4MoD",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "9b991a38-b6df-4416-a0e2-46ef8df88aaf",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "valid",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -400,
+        0
+      ],
+      "id": "59a5e2e6-6477-4a40-8865-3fd382624f0f",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "email": "={{ $json.Email }}",
+        "addOptions": {}
+      },
+      "type": "@zerobounce/n8n-nodes-zerobounce.zeroBounce",
+      "typeVersion": 1,
+      "position": [
+        -592,
+        0
+      ],
+      "id": "2ff4c355-edec-48a2-99ba-2a1fb1036244",
+      "name": "Validate an email",
+      "credentials": {
+        "zeroBounceApi": {
+          "id": "YGdBWjyRzdRa7T4K",
+          "name": "ZeroBounce account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Get Org Info",
+        "pineconeIndex": {
+          "__rl": true,
+          "value": "lyzr",
+          "mode": "list",
+          "cachedResultName": "lyzr"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+      "typeVersion": 1.3,
+      "position": [
+        1008,
+        368
+      ],
+      "id": "2c031a54-e004-493c-8b6a-dba146628b26",
+      "name": "Pinecone Vector Store",
+      "credentials": {
+        "pineconeApi": {
+          "id": "RdxF9KBhgsES1awA",
+          "name": "PineconeApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonMode": "expressionData",
+        "jsonData": "={{ $json.chatInput }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        -448,
+        1248
+      ],
+      "id": "86e78acd-781f-4f32-8a3a-9e7347c32e0a",
+      "name": "Default Data Loader"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-embedding-001"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -624,
+        1328
+      ],
+      "id": "51f23a5f-7873-4b32-ab0c-2bca19a73147",
+      "name": "Embeddings Google Gemini",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Gtt4I0RAvdTVacGw",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-embedding-001"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1008,
+        544
+      ],
+      "id": "af5dd2f2-0ac2-47b9-a4b7-5a20b692ec5d",
+      "name": "Embeddings Google Gemini1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Gtt4I0RAvdTVacGw",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1WhQgtXcJSkt21nlZwCut0CCHylSF8QXPkMCo46ZJj7I",
+          "mode": "list",
+          "cachedResultName": "Lyzr Sales Agent",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1WhQgtXcJSkt21nlZwCut0CCHylSF8QXPkMCo46ZJj7I/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1784719256,
+          "mode": "list",
+          "cachedResultName": "Bounced",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1WhQgtXcJSkt21nlZwCut0CCHylSF8QXPkMCo46ZJj7I/edit#gid=1784719256"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $('On form submission').item.json.Name }}",
+            "Email": "={{ $('On form submission').item.json.Email }}",
+            "Business": "={{ $('On form submission').item.json['Business Use Case'] }}",
+            "Country": "={{ $('On form submission').item.json.Country }}",
+            "Company Size": "={{ $('On form submission').item.json['Company Size (Number of Employees)'] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Business",
+              "displayName": "Business",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Country",
+              "displayName": "Country",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Company Size",
+              "displayName": "Company Size",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -208,
+        192
+      ],
+      "id": "8c47bc6c-d7ca-4c00-bf16-572cf4d2c639",
+      "name": "Invalid Email - Leads",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "RNbBx8oQDPp9TMcV",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1WhQgtXcJSkt21nlZwCut0CCHylSF8QXPkMCo46ZJj7I",
+          "mode": "list",
+          "cachedResultName": "Lyzr Sales Agent",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1WhQgtXcJSkt21nlZwCut0CCHylSF8QXPkMCo46ZJj7I/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.output }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $('On form submission').item.json.Name }}",
+            "Email": "={{ $('On form submission').item.json.Email }}",
+            "Business": "={{ $('On form submission').item.json['Business Use Case'] }}",
+            "Country": "={{ $('On form submission').item.json.Country }}",
+            "Company Size": "={{ $('On form submission').item.json['Company Size (Number of Employees)'] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Business",
+              "displayName": "Business",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Country",
+              "displayName": "Country",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Company Size",
+              "displayName": "Company Size",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        688,
+        16
+      ],
+      "id": "f950a057-4915-4f4c-8ca3-114713a53dc3",
+      "name": "Added to Industry Domain-based Sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "RNbBx8oQDPp9TMcV",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const allowed = [\"Supply Chain\", \"Healthcare\", \"Marketing\"];\n\nif (allowed.includes($json.output)) {\n  return items; // pass through\n}\n\nreturn []; // stop flow"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        16
+      ],
+      "id": "344db0be-f750-4089-bd31-0f0e85476b60",
+      "name": "Categorize the Company Industry/Business Usecase"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-20b:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        944,
+        224
+      ],
+      "id": "85c6e278-a091-43f9-8d2c-933d1f54d6fd",
+      "name": "OpenRouter Chat Model - GPT Free",
+      "credentials": {
+        "openRouterApi": {
+          "id": "HwubC9p31HUo4MoD",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  let raw = item.json.output;\n\n  // Clean JSON wrappers\n  raw = raw.replace(/```json/gi, '').replace(/```/g, '').trim();\n\n  let parsed;\n  try {\n    parsed = JSON.parse(raw);\n  } catch (e) {\n    const match = raw.match(/\\{[\\s\\S]*\\}/);\n    if (match) parsed = JSON.parse(match[0]);\n    else throw new Error(\"Invalid JSON\");\n  }\n\n  const clean = (text) =>\n    String(text || \"\")\n      .replace(/\\*\\*/g, '')\n      .replace(/__/g, '')\n      .replace(/`/g, '')\n      .replace(/\\r/g, '')\n      .trim();\n\n  // 🔥 Convert AI text → structured HTML\n  const formatContent = (text) => {\n    const cleaned = clean(text);\n\n    const lines = cleaned.split('\\n');\n\n    let html = '';\n    let listBuffer = [];\n\n    const flushList = () => {\n      if (listBuffer.length) {\n        html += `<ul style=\"padding-left:18px; margin:0 0 16px;\">`;\n        listBuffer.forEach(item => {\n          html += `<li style=\"margin-bottom:8px;\">${item}</li>`;\n        });\n        html += `</ul>`;\n        listBuffer = [];\n      }\n    };\n\n    lines.forEach(line => {\n      const l = line.trim();\n\n      // Detect bullets (•, -, 1.)\n      if (/^(•|-|\\d+\\.)\\s/.test(l)) {\n        listBuffer.push(l.replace(/^(•|-|\\d+\\.)\\s/, ''));\n      } else if (l === '') {\n        flushList();\n      } else {\n        flushList();\n\n        // Highlight numbers like 60%, 30%, 20-minute\n        const highlighted = l\n          .replace(/(\\d+%)/g, '<strong>$1</strong>')\n          .replace(/(\\d+-minute)/g, '<strong>$1</strong>');\n\n        html += `<p style=\"margin:0 0 14px;\">${highlighted}</p>`;\n      }\n    });\n\n    flushList();\n\n    return html;\n  };\n\n  const buildHTML = (message) => {\n    return `\n    <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#f9fafb; padding:24px 0;\">\n      <tr>\n        <td align=\"center\">\n\n          <table width=\"520\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#ffffff; border-radius:8px; padding:24px;\">\n            <tr>\n              <td style=\"font-family: Arial, sans-serif; font-size:15px; line-height:1.7; color:#1a1a1a;\">\n                \n                ${formatContent(message)}\n\n                <p style=\"margin-top:20px;\">\n                  Best regards,<br>\n                  <strong>XYZ Company Team</strong>\n                </p>\n\n              </td>\n            </tr>\n          </table>\n\n        </td>\n      </tr>\n    </table>\n    `;\n  };\n\n  return {\n    json: {\n      subject: clean(parsed.Subject),\n      message: buildHTML(parsed.Message)\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1296,
+        16
+      ],
+      "id": "81650d4a-b1ff-4d12-8af5-757313c3e114",
+      "name": "Parse the Email Draft by GPT"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('On form submission').item.json.Email }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1536,
+        16
+      ],
+      "id": "55984e85-1a71-419b-9421-d2dc6ada7c16",
+      "name": "Send first Email to customer with usecases",
+      "webhookId": "58569dc2-4bd0-4334-8e85-a9113fea03ff",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "NUpU3jIDZIksxSdz",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "# Workflow 1: Lead Capture → AI Qualification → Outbound Email",
+        "height": 1008,
+        "width": 2752
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -928,
+        -304
+      ],
+      "typeVersion": 1,
+      "id": "309809c6-75c3-4025-abac-928e8fb6e8b1",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1WhQgtXcJSkt21nlZwCut0CCHylSF8QXPkMCo46ZJj7I",
+          "mode": "list",
+          "cachedResultName": "Lyzr Sales Agent",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1WhQgtXcJSkt21nlZwCut0CCHylSF8QXPkMCo46ZJj7I/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1WhQgtXcJSkt21nlZwCut0CCHylSF8QXPkMCo46ZJj7I/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $('On form submission').item.json.Name }}",
+            "Email": "={{ $('On form submission').item.json.Email }}",
+            "Business": "={{ $('On form submission').item.json['Business Use Case'] }}",
+            "Country": "={{ $('On form submission').item.json.Country }}",
+            "Company Size": "={{ $('On form submission').item.json['Company Size (Number of Employees)'] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Business",
+              "displayName": "Business",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Country",
+              "displayName": "Country",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Company Size",
+              "displayName": "Company Size",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -192,
+        -128
+      ],
+      "id": "8dfc2b9d-3dce-45a3-857d-571e835bb0f7",
+      "name": "All Valid Leads",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "RNbBx8oQDPp9TMcV",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "# Workflow 2: Company - Knowledge Storage",
+        "height": 576,
+        "width": 880,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1104,
+        912
+      ],
+      "typeVersion": 1,
+      "id": "22bbbe0c-97de-437d-9fe7-a7a4d53245b7",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "# Workflow 3: AI Follow-Up Engine (Auto Replies → Book Meeting)",
+        "height": 528,
+        "width": 1600,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        256,
+        928
+      ],
+      "typeVersion": 1,
+      "id": "7e8bb5d0-0479-4cf1-b8a8-ee7b189cadcb",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "resource": "thread",
+        "operation": "get",
+        "threadId": "={{ $json.threadId }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        560,
+        1040
+      ],
+      "id": "d5742212-aa50-4756-95d0-9ea4f2e13085",
+      "name": "Get Email thread",
+      "webhookId": "54322a26-d502-4570-83e2-7192da8bce92",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "NUpU3jIDZIksxSdz",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        368,
+        1040
+      ],
+      "id": "dc167970-bf72-4e4b-908b-37a536018c95",
+      "name": "Polling for Reply - Monitoring",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "NUpU3jIDZIksxSdz",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const thread = $json.messages;\n\nconst MY_EMAIL = \"himanshi.kohli19@gmail.com\";\n\n// Filter only client messages\nconst clientMessages = thread.filter(msg => {\n  return !msg.From.includes(MY_EMAIL);\n});\n\n// Sort by latest\nclientMessages.sort((a, b) => {\n  return Number(b.internalDate) - Number(a.internalDate);\n});\n\n// Pick latest client message\nconst latest = clientMessages[0];\n\nreturn [\n  {\n    json: {\n      messageId: latest.id\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        768,
+        1040
+      ],
+      "id": "421a4184-87f6-4f5c-b1ca-b24033cb1552",
+      "name": "Extract Latest Client Message"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Get Email thread').item.json.messages }}",
+        "options": {
+          "systemMessage": "Use the user input and create an email to convert the client. \nThe outcome should be setting a meeting. Short + polite. No need to add anything about any attachment\nOutput format: json with fields - Subject, Message\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1008,
+        1040
+      ],
+      "id": "47a7ce3d-8887-4847-90a0-ffaf3ae7e69f",
+      "name": "AI Agent - Reply Generation",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  const parsed = JSON.parse(item.json.output);\n\n  return {\n    json: {\n      subject: parsed.Subject,\n      message: parsed.Message\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1376,
+        1040
+      ],
+      "id": "2332aabd-e9b8-4e1a-93e1-4fa8d88ea4a6",
+      "name": "Parse AI Output"
+    },
+    {
+      "parameters": {
+        "resource": "thread",
+        "operation": "reply",
+        "threadId": "={{ $('Polling for Reply - Monitoring').item.json.threadId }}",
+        "messageId": "={{ $('Extract Latest Client Message').item.json.messageId }}",
+        "message": "={{ $json.message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1600,
+        1040
+      ],
+      "id": "ef7e2411-f7a8-4701-8b85-d44eb9597be1",
+      "name": "Send Reply",
+      "webhookId": "2ac0d1b9-5b01-4dff-8063-d3ca3afa9e48",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "NUpU3jIDZIksxSdz",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('On form submission').item.json['Business Use Case'] }} - categorize this input into one of the three : Supply Chain, Healthcare, Marketing",
+        "options": {
+          "systemMessage": "Output should be nothing but one single category out of the three."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        32,
+        16
+      ],
+      "id": "463d1196-3b4d-4d7d-833a-31e351dc587c",
+      "name": "AI Agent 1: Categorize the Business Usecase",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-20b:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1008,
+        1264
+      ],
+      "id": "f02b4ad2-9d0d-4180-baae-45e5767ff9b6",
+      "name": "OpenRouter Chat Model - Free",
+      "credentials": {
+        "openRouterApi": {
+          "id": "HwubC9p31HUo4MoD",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "pineconeIndex": {
+          "__rl": true,
+          "value": "lyzr",
+          "mode": "list",
+          "cachedResultName": "lyzr"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+      "typeVersion": 1.3,
+      "position": [
+        -624,
+        1056
+      ],
+      "id": "576ad4b2-5b07-4aca-a407-848b329ba07f",
+      "name": "Storage - Pinecone Vector Store1",
+      "credentials": {
+        "pineconeApi": {
+          "id": "RdxF9KBhgsES1awA",
+          "name": "PineconeApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Name -  {{ $('On form submission').item.json.Name }}\nBusiness Use Case - {{ $('On form submission').item.json['Business Use Case'] }}\nCountry - {{ $('On form submission').item.json.Country }}\nCompany Size - {{ $('On form submission').item.json['Company Size (Number of Employees)'] }}",
+        "options": {
+          "systemMessage": "Here’s a sharper, more professional (and safer) version of your system message:\n\n---\n\n**System Message:**\n\nYou are an AI sales representative for XYZ Company.\n\nYour task is to generate a highly personalized, friendly, persuasive, and professional email tailored to the prospective client. It's a cold email reachout. The goal is to clearly communicate how  XYZ Company's automation solutions can address the client’s specific business needs and encourage them to take the next step (e.g., booking a call or demo). \n\nGuidelines:\n\n* Use the provided user input as the client’s business context.\n* Retrieve relevant information about \"XYZ Company\" using the Pinecone tool when needed.\n* Focus on clarity, relevance, and value—avoid exaggeration or overly aggressive language.\n* Keep the tone professional, concise, and customer-centric.\n* Highlight how \"XYZ Company\" can solve the client’s specific problem or improve their workflow.\n* Write it like an email, not in tabular format.\n* The use cases that are being presented in the email should be in pointers.\n\nOutput Requirements:\n\n* Return strictly valid JSON.\n* Include only two fields:\n\n  * \"Subject\": a compelling email subject line\n  * \"Message\": the full email body\n* Do not include any additional text or formatting outside the JSON.\n\nSender:\n\n* The email should be written as if sent by the \"XYZ Company \"Team.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        944,
+        16
+      ],
+      "id": "60e6c1b0-1066-4552-9d23-1cf48325415e",
+      "name": "AI Agent 2 (RAG): Draft an Email to Customer"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -960,
+        1056
+      ],
+      "id": "241a5797-b486-4bfe-acb0-894469d12d36",
+      "name": "Input Interface",
+      "webhookId": "0734df81-4d45-4dd7-9157-7768393a1690"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Validate an email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent 1: Categorize the Business Usecase",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate an email": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "All Valid Leads",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Invalid Email - Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pinecone Vector Store": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent 2 (RAG): Draft an Email to Customer",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Storage - Pinecone Vector Store1",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Google Gemini": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Storage - Pinecone Vector Store1",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Google Gemini1": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Pinecone Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Added to Industry Domain-based Sheet": {
+      "main": [
+        [
+          {
+            "node": "AI Agent 2 (RAG): Draft an Email to Customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Categorize the Company Industry/Business Usecase": {
+      "main": [
+        [
+          {
+            "node": "Added to Industry Domain-based Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model - GPT Free": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent 2 (RAG): Draft an Email to Customer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse the Email Draft by GPT": {
+      "main": [
+        [
+          {
+            "node": "Send first Email to customer with usecases",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send first Email to customer with usecases": {
+      "main": [
+        []
+      ]
+    },
+    "All Valid Leads": {
+      "main": [
+        [
+          {
+            "node": "AI Agent 1: Categorize the Business Usecase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Email thread": {
+      "main": [
+        [
+          {
+            "node": "Extract Latest Client Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Polling for Reply - Monitoring": {
+      "main": [
+        [
+          {
+            "node": "Get Email thread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Latest Client Message": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Reply Generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - Reply Generation": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Output": {
+      "main": [
+        [
+          {
+            "node": "Send Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Reply": {
+      "main": [
+        []
+      ]
+    },
+    "AI Agent 1: Categorize the Business Usecase": {
+      "main": [
+        [
+          {
+            "node": "Categorize the Company Industry/Business Usecase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model - Free": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent - Reply Generation",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Storage - Pinecone Vector Store1": {
+      "ai_tool": [
+        []
+      ],
+      "main": [
+        []
+      ]
+    },
+    "AI Agent 2 (RAG): Draft an Email to Customer": {
+      "main": [
+        [
+          {
+            "node": "Parse the Email Draft by GPT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input Interface": {
+      "main": [
+        [
+          {
+            "node": "Storage - Pinecone Vector Store1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "72e275a5-98bf-4275-bffa-f74a0ef7bdee",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "f0de39e7be7441032ef7d51b99eb7950c623540a4dfee870924e8ae970838d36"
+  },
+  "id": "vG4eQATnHtlDr4Sh",
+  "tags": []
+}

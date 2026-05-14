@@ -1,0 +1,484 @@
+{
+  "name": "RE Agent Verification Orchestrator - Simple",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agent-activated",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "b5077b0e-2055-48ae-a92d-d783fe21bc00",
+      "name": "Webhook: agent.activated",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -992,
+        64
+      ],
+      "webhookId": "c4c22c04-12e5-40c1-87a2-4cb13c17e112"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Verify HMAC signature on raw body using shared secret from credential.\nconst crypto = require('crypto');\nconst secret = $env.CRM_WEBHOOK_HMAC_SECRET;\nconst signature = $input.item.json.headers['x-real-signature'];\nconst raw = $input.item.json.rawBody;\nconst expected = crypto.createHmac('sha256', secret).update(raw).digest('hex');\nif (signature !== expected) {\n  throw new Error('Invalid HMAC signature');\n}\nreturn { json: JSON.parse(raw) };"
+      },
+      "id": "05c2d9d4-8573-4110-b34d-5f3bdc988c92",
+      "name": "HMAC Verify",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        -768,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "={{ 'evt:' + $json.event_id }}",
+        "value": "1",
+        "expire": true,
+        "ttl": 86400
+      },
+      "id": "efb7bb47-c674-45b2-84d7-3c06d2998706",
+      "name": "Redis SET NX (idempotency)",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -560,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.set }}",
+              "value2": "OK"
+            }
+          ]
+        }
+      },
+      "id": "a33c2ee0-951d-444a-ab6b-1ae8989ebe52",
+      "name": "Is duplicate?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "duplicate",
+        "options": {
+          "responseCode": 202
+        }
+      },
+      "id": "c5e0cb23-e31d-4a51-bdb6-c6a6d01ac3c0",
+      "name": "Respond 202 (duplicate)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -112,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO verification_runs (agent_id, crm_event_id, state, payload) VALUES ($1, $2, 'pending', $3) ON CONFLICT (agent_id, crm_event_id) DO NOTHING RETURNING id",
+        "options": {}
+      },
+      "id": "e67b16d7-9889-44ff-b380-fa7527869f55",
+      "name": "Postgres: insert run",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        112,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE verification_runs SET state = $1, result_json = $2, completed_at = now() WHERE agent_id = $3 AND crm_event_id = $4",
+        "options": {}
+      },
+      "id": "2c3524f7-f697-4ece-9330-02df498e4151",
+      "name": "Postgres: finalize run",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1216,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.CRM_API_BASE_URL + '/api/agents/' + $json.agent_id + '/verification' }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBearerAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "verified",
+              "value": "={{ $json.verified }}"
+            },
+            {
+              "name": "verified_at",
+              "value": "={{ $now.toISO() }}"
+            },
+            {
+              "name": "verification_notes",
+              "value": "={{ $json.failure_reason || 'OK' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "19d06968-02ee-45ce-9ce1-2fa371b8538f",
+      "name": "CRM writeback",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1440,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "accepted",
+        "options": {
+          "responseCode": 202
+        }
+      },
+      "id": "232288c6-a153-4eb7-a02c-1513a30ce43a",
+      "name": "Not Duplicate - accepted",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -112,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Step 1: Trigger (from CRM) -> Authenticity Check (Verify HMAC Signature)",
+        "height": 352,
+        "width": 432,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1072,
+        -96
+      ],
+      "typeVersion": 1,
+      "id": "0a1afe72-92d9-4781-9e11-33d23122c18b",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Step 2: Indempotency Check -> Log the Run (Postgres)",
+        "height": 544,
+        "width": 848
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -592,
+        -144
+      ],
+      "typeVersion": 1,
+      "id": "3ab700f5-4133-41c4-9aa5-ae399a48ad14",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Step 3: Verification Pipeline: Fetch agent data (API) -> Check JoinReal (browser automation) -> Check DRE (browser automation) -> Compare",
+        "height": 368,
+        "width": 848,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        288,
+        -16
+      ],
+      "typeVersion": 1,
+      "id": "32556123-9c78-4d75-ab70-a9e99bbb80e9",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## Step 4: Store result -> Update CRM",
+        "height": 352,
+        "width": 464,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1168,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "34b00d09-1e92-47b7-b30f-fbac54a9502a",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.CRM_API_BASE_URL + '/api/agents/' + $json.agent_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBearerAuth",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "b735847d-2021-44f1-b433-5ac0b896bcbe",
+      "name": "1 -> API: extract agent metadata",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        336,
+        160
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.PLAYWRIGHT_WORKER_URL + '/jobs/joinreal/verify' }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "agent_id",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "name": "name",
+              "value": "={{ $json.full_name }}"
+            },
+            {
+              "name": "expected_state",
+              "value": "={{ $json.licensing_state }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 90000
+        }
+      },
+      "id": "d659bd8b-ac8f-4a4f-928d-a16b5d395b81",
+      "name": "2 -> Worker: JoinReal verify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        560,
+        160
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Cross-validate CRM and DRE expiration dates and JoinReal state.\nconst crm = $('1 -> API: extract agent metadata').item.json;\nconst jr = $('2 -> Worker: JoinReal verify').item.json;\nconst dre = $('3 -> Worker: DRE verify (per-state)').item.json;\n\nconst result = {\n  agent_id: crm.id,\n  state_match: jr.listed_state === crm.licensing_state,\n  expiration_match: crm.license_expiration === dre.expiration,\n  crm_expiration: crm.license_expiration,\n  dre_expiration: dre.expiration,\n  joinreal_state: jr.listed_state,\n  crm_state: crm.licensing_state,\n  joinreal_found: jr.found === true\n};\n\nresult.verified = result.state_match && result.expiration_match && result.joinreal_found;\nresult.failure_reason = !result.verified\n  ? (!result.joinreal_found ? 'not_found_on_joinreal'\n    : !result.state_match ? 'state_mismatch'\n    : !result.expiration_match ? 'expiration_mismatch'\n    : 'unknown')\n  : null;\n\nreturn { json: result };"
+      },
+      "id": "da1ec9b9-d057-43c9-9c81-aee228b56f5c",
+      "name": "4 -> Cross-validate",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        992,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.PLAYWRIGHT_WORKER_URL + '/jobs/dre/' + $json.licensing_state.toLowerCase() + '/verify' }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "license_no",
+              "value": "={{ $json.license_no }}"
+            },
+            {
+              "name": "agent_id",
+              "value": "={{ $json.id }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "649b4523-9bd3-4568-ad7c-9cd018cef1fc",
+      "name": "3 -> Worker: DRE verify (per-state)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        768,
+        144
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000,
+      "onError": "continueErrorOutput"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook: agent.activated": {
+      "main": [
+        [
+          {
+            "node": "HMAC Verify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HMAC Verify": {
+      "main": [
+        [
+          {
+            "node": "Redis SET NX (idempotency)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis SET NX (idempotency)": {
+      "main": [
+        [
+          {
+            "node": "Is duplicate?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is duplicate?": {
+      "main": [
+        [
+          {
+            "node": "Respond 202 (duplicate)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Not Duplicate - accepted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: insert run": {
+      "main": [
+        [
+          {
+            "node": "1 -> API: extract agent metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: finalize run": {
+      "main": [
+        [
+          {
+            "node": "CRM writeback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Not Duplicate - accepted": {
+      "main": [
+        [
+          {
+            "node": "Postgres: insert run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1 -> API: extract agent metadata": {
+      "main": [
+        [
+          {
+            "node": "2 -> Worker: JoinReal verify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2 -> Worker: JoinReal verify": {
+      "main": [
+        [
+          {
+            "node": "3 -> Worker: DRE verify (per-state)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4 -> Cross-validate": {
+      "main": [
+        [
+          {
+            "node": "Postgres: finalize run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3 -> Worker: DRE verify (per-state)": {
+      "main": [
+        [
+          {
+            "node": "4 -> Cross-validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "719ddfaa-5b6b-4978-9346-d0233ecaca43",
+  "meta": {
+    "instanceId": "f0de39e7be7441032ef7d51b99eb7950c623540a4dfee870924e8ae970838d36"
+  },
+  "id": "ZPg8PCNxXukbhxQk",
+  "tags": []
+}

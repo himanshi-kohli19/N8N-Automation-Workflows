@@ -1,0 +1,822 @@
+{
+  "name": "OCR Project (pdf/img_to_info_extracted)",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "1ffnL-PscCBrfYmc_TMMNelSHrxBUCxNx",
+          "mode": "list",
+          "cachedResultName": "Invoices - to be processed",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1ffnL-PscCBrfYmc_TMMNelSHrxBUCxNx"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "1c290466-74c5-443f-908e-7af3dc165e04",
+      "name": "Google Drive Trigger",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "VkYcY4ZK3XXdbL6I",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {
+          "binaryPropertyName": "Invoices"
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        208,
+        0
+      ],
+      "id": "d8db8a1a-4472-46b8-8c5a-558d2201282d",
+      "name": "Download file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "VkYcY4ZK3XXdbL6I",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6b08bbc3-6197-4ade-978c-d757a84d26c4",
+              "leftValue": "={{ $json.mimeType }}",
+              "rightValue": "application/pdf",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        416,
+        0
+      ],
+      "id": "a3da93f5-97c7-4313-8e90-1fac4e887274",
+      "name": "PDF?"
+    },
+    {
+      "parameters": {
+        "content": "## Step 1 - Get document",
+        "height": 272,
+        "width": 608
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -48,
+        -96
+      ],
+      "typeVersion": 1,
+      "id": "5e949d8c-918d-4dd7-98b1-dc46ce38b15d",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Step 2 - Extract Image",
+        "height": 448,
+        "width": 528,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        608,
+        -96
+      ],
+      "typeVersion": 1,
+      "id": "ac41e525-5728-4208-bae7-e0445203c60d",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "binaryProperty": "Invoices",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mistralAi",
+      "typeVersion": 1,
+      "position": [
+        656,
+        -16
+      ],
+      "id": "caa41be3-4da3-418b-accc-5c8b316265ef",
+      "name": "Extract text",
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "82wuZar0lMNte7ex",
+          "name": "Mistral Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.extractedText }}",
+        "attributes": {
+          "attributes": [
+            {
+              "name": "Invoice Category",
+              "description": "Select from predefined options (Office supplies, bills, rent). Do not create new categories.",
+              "required": true
+            },
+            {
+              "name": "Invoice Number",
+              "description": "The unique identifier assigned to the invoice, usually a sequence of numbers or letters."
+            },
+            {
+              "name": "Invoice Biller",
+              "description": "The name of the company or individual issuing the invoice."
+            },
+            {
+              "name": "Invoice Total",
+              "type": "number",
+              "description": "The total payable amount including tax"
+            },
+            {
+              "name": "Invoice Sub Total",
+              "type": "number",
+              "description": "The subtotal before tax"
+            },
+            {
+              "name": "Tax Amount",
+              "type": "number",
+              "description": "The value of tax applied to the invoice, shown separately from the totals."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1.2,
+      "position": [
+        864,
+        -16
+      ],
+      "id": "128b0696-5c1a-48d6-9925-a8ad1bdc2069",
+      "name": "Information Extractor"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-20b:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        864,
+        192
+      ],
+      "id": "df9d8df2-dd6f-407d-8f32-54e1bf1fde7e",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "HwubC9p31HUo4MoD",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentType": "image_url",
+        "binaryProperty": "Invoices",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mistralAi",
+      "typeVersion": 1,
+      "position": [
+        656,
+        160
+      ],
+      "id": "47989205-afea-4b47-a82a-9b139c81fcd0",
+      "name": "Extract Image",
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "82wuZar0lMNte7ex",
+          "name": "Mistral Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "move",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $('Download file').item.json.id }}",
+          "mode": "id"
+        },
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1aWfyx-ve32sqwVb6WJ60KRt5yeVb7qO6",
+          "mode": "list",
+          "cachedResultName": "Invoice Processed",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1aWfyx-ve32sqwVb6WJ60KRt5yeVb7qO6"
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1216,
+        -16
+      ],
+      "id": "23dffffc-cbb3-4be6-b897-8d87416ca7be",
+      "name": "Move file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "VkYcY4ZK3XXdbL6I",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "newUpdatedFileName": "={{ $('Information Extractor').item.json.output['Invoice Biller'] }} - {{ $('Information Extractor').item.json.output['Invoice Number'] }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1424,
+        -16
+      ],
+      "id": "c3cb5bf6-6106-4043-a087-6010ee0d7452",
+      "name": "Update file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "VkYcY4ZK3XXdbL6I",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1T8FI5n_1ue8aX3js9sKGFgfOA0oS0t-gC6KqilPmbCQ",
+          "mode": "list",
+          "cachedResultName": "Invoice Details",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1T8FI5n_1ue8aX3js9sKGFgfOA0oS0t-gC6KqilPmbCQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1T8FI5n_1ue8aX3js9sKGFgfOA0oS0t-gC6KqilPmbCQ/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Invoice Category": "={{ $('Information Extractor').item.json.output['Invoice Category'] }}",
+            "Invoice Number": "={{ $('Information Extractor').item.json.output['Invoice Number'] }}",
+            "Invoice Biller": "={{ $('Information Extractor').item.json.output['Invoice Biller'] }}",
+            "Invoice Total": "={{ $('Information Extractor').item.json.output['Invoice Total'] }}",
+            "Invoice Sub Total": "={{ $('Information Extractor').item.json.output['Invoice Sub Total'] }}",
+            "Tax Amount": "={{ $('Information Extractor').item.json.output['Tax Amount'] }}",
+            "File URL": "=https://drive.google.com/drive/folders/{{ $json.id }}/view"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Invoice Category",
+              "displayName": "Invoice Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Invoice Number",
+              "displayName": "Invoice Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Invoice Biller",
+              "displayName": "Invoice Biller",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Invoice Total",
+              "displayName": "Invoice Total",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Invoice Sub Total",
+              "displayName": "Invoice Sub Total",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Tax Amount",
+              "displayName": "Tax Amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "File URL",
+              "displayName": "File URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2080,
+        -32
+      ],
+      "id": "6b01c3a9-1b1a-47e4-8f11-1ce2ad25f2d6",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "RNbBx8oQDPp9TMcV",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Step 3- Store Invoice",
+        "height": 448,
+        "width": 1184,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1184,
+        -96
+      ],
+      "typeVersion": 1,
+      "id": "c29ec9d5-18d7-43a4-b989-7f26f46ee848",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1T8FI5n_1ue8aX3js9sKGFgfOA0oS0t-gC6KqilPmbCQ",
+          "mode": "list",
+          "cachedResultName": "Invoice Details",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1T8FI5n_1ue8aX3js9sKGFgfOA0oS0t-gC6KqilPmbCQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1T8FI5n_1ue8aX3js9sKGFgfOA0oS0t-gC6KqilPmbCQ/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1632,
+        -16
+      ],
+      "id": "7d9237fb-f6e9-4921-9eab-d09f0d9d7075",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "RNbBx8oQDPp9TMcV",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3df78031-fdd3-43bb-b165-0e8f485352e2",
+              "leftValue": "=",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notExists",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "ab22df91-0ebe-4df6-93eb-1c04c78765de",
+              "leftValue": "=",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notExists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1840,
+        -16
+      ],
+      "id": "06e5bdb7-2811-44d4-9678-9bc7b185ee95",
+      "name": "If"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2080,
+        160
+      ],
+      "id": "8dda0af7-1892-42aa-84f0-14f8aa518382",
+      "name": "No Operation, do nothing"
+    }
+  ],
+  "pinData": {
+    "Google Drive Trigger": [
+      {
+        "json": {
+          "kind": "drive#file",
+          "fileExtension": "pdf",
+          "copyRequiresWriterPermission": false,
+          "md5Checksum": "63fc191a0935fb2554b20a861b6dd295",
+          "writersCanShare": true,
+          "viewedByMe": true,
+          "mimeType": "application/pdf",
+          "parents": [
+            "1ffnL-PscCBrfYmc_TMMNelSHrxBUCxNx"
+          ],
+          "thumbnailLink": "https://lh3.googleusercontent.com/drive-storage/AJQWtBNaSbbWp_EaAIaRhXCk0uGcVFMtLWxemRmAS0mndZZ_covLDUbEB_RChjIJN4FX-vZ8ViQezHYI87pZj8MmO_18Quz2AZEBFiI78OtrHnI4y87thg=s220",
+          "iconLink": "https://drive-thirdparty.googleusercontent.com/16/type/application/pdf",
+          "shared": true,
+          "lastModifyingUser": {
+            "displayName": "Himanshi Kohli",
+            "kind": "drive#user",
+            "me": true,
+            "permissionId": "16804777798934005741",
+            "emailAddress": "himanshi.kohli19@gmail.com",
+            "photoLink": "https://lh3.googleusercontent.com/a/ACg8ocLwOp0cW390DwcG-Vs-NXwCCQZBGX35RfCCLyTbIgQMRF1MXw=s64"
+          },
+          "owners": [
+            {
+              "displayName": "Himanshi Kohli",
+              "kind": "drive#user",
+              "me": true,
+              "permissionId": "16804777798934005741",
+              "emailAddress": "himanshi.kohli19@gmail.com",
+              "photoLink": "https://lh3.googleusercontent.com/a/ACg8ocLwOp0cW390DwcG-Vs-NXwCCQZBGX35RfCCLyTbIgQMRF1MXw=s64"
+            }
+          ],
+          "headRevisionId": "0By23VQdu0C5vVUhCRVRsR1J2UnRNcUZSNWg3bEUxWnZ2RmUwPQ",
+          "webViewLink": "https://drive.google.com/file/d/1kjwCHHc3llkCwp0kYx1wqcTFwcSRxOdi/view?usp=drivesdk",
+          "webContentLink": "https://drive.google.com/uc?id=1kjwCHHc3llkCwp0kYx1wqcTFwcSRxOdi&export=download",
+          "size": "2939",
+          "viewersCanCopyContent": true,
+          "permissions": [
+            {
+              "id": "anyoneWithLink",
+              "type": "anyone",
+              "kind": "drive#permission",
+              "role": "reader",
+              "allowFileDiscovery": false
+            },
+            {
+              "id": "16804777798934005741",
+              "displayName": "Himanshi Kohli",
+              "type": "user",
+              "kind": "drive#permission",
+              "photoLink": "https://lh3.googleusercontent.com/a/ACg8ocLwOp0cW390DwcG-Vs-NXwCCQZBGX35RfCCLyTbIgQMRF1MXw=s64",
+              "emailAddress": "himanshi.kohli19@gmail.com",
+              "role": "owner",
+              "deleted": false,
+              "pendingOwner": false
+            }
+          ],
+          "hasThumbnail": true,
+          "spaces": [
+            "drive"
+          ],
+          "id": "1kjwCHHc3llkCwp0kYx1wqcTFwcSRxOdi",
+          "name": "sample_invoice_01.pdf",
+          "starred": false,
+          "trashed": false,
+          "explicitlyTrashed": false,
+          "createdTime": "2026-05-05T06:46:36.380Z",
+          "modifiedTime": "2026-05-05T01:01:04.000Z",
+          "modifiedByMeTime": "2026-05-05T01:01:04.000Z",
+          "viewedByMeTime": "2026-05-05T06:46:36.380Z",
+          "quotaBytesUsed": "2939",
+          "version": "3",
+          "originalFilename": "sample_invoice_01.pdf",
+          "ownedByMe": true,
+          "fullFileExtension": "pdf",
+          "isAppAuthorized": false,
+          "capabilities": {
+            "canChangeViewersCanCopyContent": true,
+            "canEdit": true,
+            "canCopy": true,
+            "canComment": true,
+            "canAddChildren": false,
+            "canDelete": true,
+            "canDownload": true,
+            "canListChildren": false,
+            "canRemoveChildren": false,
+            "canRename": true,
+            "canTrash": true,
+            "canReadRevisions": true,
+            "canChangeCopyRequiresWriterPermission": true,
+            "canMoveItemIntoTeamDrive": true,
+            "canUntrash": true,
+            "canModifyContent": true,
+            "canMoveItemOutOfDrive": true,
+            "canAddMyDriveParent": false,
+            "canRemoveMyDriveParent": true,
+            "canMoveItemWithinDrive": true,
+            "canShare": true,
+            "canMoveChildrenWithinDrive": false,
+            "canModifyContentRestriction": true,
+            "canChangeSecurityUpdateEnabled": false,
+            "canAcceptOwnership": false,
+            "canReadLabels": false,
+            "canModifyLabels": false,
+            "canModifyEditorContentRestriction": true,
+            "canModifyOwnerContentRestriction": true,
+            "canRemoveContentRestriction": false,
+            "canDisableInheritedPermissions": false,
+            "canEnableInheritedPermissions": true,
+            "canChangeItemDownloadRestriction": true,
+            "canStartApproval": false
+          },
+          "thumbnailVersion": "1",
+          "modifiedByMe": true,
+          "permissionIds": [
+            "anyoneWithLink",
+            "16804777798934005741"
+          ],
+          "linkShareMetadata": {
+            "securityUpdateEligible": false,
+            "securityUpdateEnabled": true
+          },
+          "sha1Checksum": "d146b55a18464a5100e2e26e9cbd14b5c3a68d5f",
+          "sha256Checksum": "0c97a905a83f2019033cde95ca38d20a4c3cc0fa20d2dd5e555395389d0b32bd",
+          "inheritedPermissionsDisabled": false,
+          "downloadRestrictions": {
+            "itemDownloadRestriction": {
+              "restrictedForReaders": false,
+              "restrictedForWriters": false
+            },
+            "effectiveDownloadRestrictionWithContext": {
+              "restrictedForReaders": false,
+              "restrictedForWriters": false
+            }
+          },
+          "clientEncryptionDetails": {
+            "decryptionMetadata": {
+              "wrappedKey": "",
+              "kaclsId": "0",
+              "aes256GcmChunkSize": "unset",
+              "keyFormat": "unsetKeyFormat",
+              "encryptionResourceKeyHash": ""
+            }
+          }
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Google Drive Trigger": {
+      "main": [
+        [
+          {
+            "node": "Download file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download file": {
+      "main": [
+        [
+          {
+            "node": "PDF?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PDF?": {
+      "main": [
+        [
+          {
+            "node": "Extract text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract text": {
+      "main": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Image": {
+      "main": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Information Extractor": {
+      "main": [
+        [
+          {
+            "node": "Move file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move file": {
+      "main": [
+        [
+          {
+            "node": "Update file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update file": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "91fd9dff-bd15-46e2-b8aa-7bc330527e79",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "f0de39e7be7441032ef7d51b99eb7950c623540a4dfee870924e8ae970838d36"
+  },
+  "id": "tZi63dkVCpIdnMAR",
+  "tags": []
+}
